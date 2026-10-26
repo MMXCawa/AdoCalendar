@@ -1,0 +1,201 @@
+use localization
+
+pub fn app_title() -> string:
+    "ADOCalendar"
+
+pub fn about_title() -> string:
+    "About ADOCalendar"
+
+pub fn author_text() -> string:
+    "Authors: MMXCawa, B130MYS"
+
+pub fn acknowledgements_text() -> string:
+    "Special thanks: Ariaelle, Giough, Icebomb丶ye, SwidmV, ColdCat"
+
+pub fn today_preview_title() -> string:
+    "Today's Record Preview"
+
+pub fn version_label() -> string:
+    f"Version: {localization.version()}"
+
+pub fn initial_status() -> string:
+    "Click the top-right button to change the theme. Use the buttons below to open the game or related pages."
+
+pub fn theme_label(name: &string) -> string:
+    f"Theme: {name}  ⟳"
+
+pub fn status_theme_changed(name: &string) -> string:
+    f"Switched to the {name} theme."
+
+pub fn status_returned() -> string:
+    "Returned to today's fortune."
+
+pub fn status_save_failed(error: &string) -> string:
+    f"Save failed: {error}"
+
+pub fn status_saved(path: &string) -> string:
+    f"Appended to: {path}"
+
+pub fn status_launch_game() -> string:
+    "Launch request sent to ADOFAI. Check whether Steam responds."
+
+pub fn status_open_level(level_id: i64) -> string:
+    f"Request sent to open today's level {level_id}."
+
+pub fn status_level_unavailable() -> string:
+    "Today's level ID is unavailable. Check your network and restart the app."
+
+pub fn status_open_updates() -> string:
+    "Update page request sent. Check your default browser."
+
+pub fn button_return() -> string:
+    "Home"
+
+pub fn button_save_record() -> string:
+    "Save Today's Record"
+
+pub fn button_launch_game() -> string:
+    "Launch ADOFAI"
+
+pub fn button_view_level() -> string:
+    "View Level"
+
+pub fn button_view_updates() -> string:
+    "Check Updates"
+
+pub fn button_about() -> string:
+    "About"
+
+pub fn button_language() -> string:
+    "简体中文"
+
+pub fn language_changed() -> string:
+    "Language changed to English."
+
+pub fn label_fortune() -> string:
+    "Today's Fortune"
+
+pub fn label_suitable() -> string:
+    "Do"
+
+pub fn label_unsuitable() -> string:
+    "Avoid"
+
+pub fn label_daily_level() -> string:
+    "Daily Level Recommendation"
+
+pub fn daily_level_id_record_label() -> string:
+    "Daily Level ID"
+
+pub fn daily_level_record_label() -> string:
+    "Daily Level"
+
+pub fn date_text(date_label: &string, weekday: &string) -> string:
+    f"Today is {date_label} - {weekday}"
+
+pub fn date_format() -> string:
+    "%B %d, %Y"
+
+pub fn fortune_text(fortune: i64) -> string:
+    f"Today's Fortune: {fortune}"
+
+pub fn suitable_text(suitable: &string) -> string:
+    f"Do: {suitable}"
+
+pub fn unsuitable_text(unsuitable: &string) -> string:
+    f"Avoid: {unsuitable}"
+
+pub fn weekend_event() -> string:
+    "Relax"
+
+pub fn perfect_fortune() -> string:
+    "Perfect"
+
+pub fn all_activities_allowed() -> string:
+    "Anything goes"
+
+pub fn event_separator() -> string:
+    ", "
+
+pub fn theme_default_name() -> string:
+    "Ice Blue"
+
+pub fn theme_midnight_name() -> string:
+    "Midnight Blue"
+
+pub fn theme_sunset_name() -> string:
+    "Warm Sunset"
+
+pub fn unknown() -> string:
+    "Unknown"
+
+pub fn unrated() -> string:
+    "Unrated"
+
+pub fn unknown_artist() -> string:
+    "Unknown artist"
+
+pub fn unknown_song() -> string:
+    "Unknown song"
+
+pub fn unknown_author() -> string:
+    "Unknown author"
+
+pub fn unknown_difficulty() -> string:
+    unknown()
+
+pub fn weekday_name(index: i64) -> string:
+    let weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    weekdays[index]
+
+pub fn event_name(index: i64) -> string:
+    let events = ["Indexing", "Rolling", "Break ACC Record", "World First Clear", "Watch a stream", "Play speed trial", "Play casually", "Charting", "VFXing", "BAIXIE", "Code", "Go wild"]
+    events[index]
+
+pub fn api_connection_error(error: &string) -> string:
+    f"Daily level: API connection failed ({error})"
+
+pub fn api_request_error(status: i64) -> string:
+    f"Daily level: API request failed (HTTP {status})"
+
+pub fn api_json_error(error: &string) -> string:
+    f"Daily level: could not parse level list JSON ({error})"
+
+pub fn api_missing_results() -> string:
+    "Daily level: API response is missing the results field"
+
+pub fn api_no_levels() -> string:
+    "Daily level: no levels are currently available from the API"
+
+pub fn latest_level_error(error: &string) -> string:
+    f"Daily level: could not read the latest level ({error})"
+
+pub fn latest_level_missing_id() -> string:
+    "Daily level: latest level has no ID"
+
+pub fn latest_level_invalid_id(error: &string) -> string:
+    f"Daily level: latest level ID is invalid ({error})"
+
+pub fn api_invalid_level_id() -> string:
+    "Daily level: API returned an invalid level ID"
+
+pub fn fetch_level_error(level_id: i64, error: &string) -> string:
+    f"Daily level: could not fetch level {level_id} ({error})"
+
+pub fn fetch_level_http_error(level_id: i64, status: i64) -> string:
+    f"Daily level: request for level {level_id} failed (HTTP {status})"
+
+pub fn level_json_error(error: &string) -> string:
+    f"Daily level: could not parse level JSON ({error})"
+
+pub fn level_description(artist: &string, song: &string, id: &string, author: &string, difficulty: &string, score: &string, clears: &string) -> string:
+    f"Daily level: {artist} - {song}\nLevel ID: {id}\nCreator: {author}\nDifficulty: {difficulty} (base score: {score})\nUnique clears: {clears}"
+
+pub fn author_with_vfx(author: &string, vfx: &string) -> string:
+    f"{author} / VFX: {vfx}"
+
+pub fn calendar_record(date: &string, fortune: &string, suitable: &string, unsuitable: &string, level_id: i64, level_text: &string) -> string:
+    f"Date: {date}\n{fortune}\n{suitable}\n{unsuitable}\n{daily_level_id_record_label()}: {level_id}\n{daily_level_record_label()}: {level_text}\nVersion: {localization.version()}"
+
+pub fn about_summary(date: &string, fortune: &string, suitable: &string, unsuitable: &string, level_id: i64) -> string:
+    f"{date}\n{fortune}  |  {suitable}  |  {unsuitable}\n{daily_level_id_record_label()}: {level_id}"

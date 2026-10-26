@@ -1,0 +1,688 @@
+use std/ui
+use std/datetime
+use std/random
+use std/http
+use std/json
+use std/process
+use localization
+use localization_en
+
+extern fn system(command: &string) -> bool
+
+struct CalendarApp:
+    canvas: ui.Canvas
+    date_text: string
+    date_text_en: string
+    fortune_text: string
+    fortune_text_en: string
+    fortune_value: i64
+    suitable_text: string
+    suitable_text_en: string
+    unsuitable_text: string
+    unsuitable_text_en: string
+    level_text: string
+    level_text_en: string
+    level_id: i64
+    status_text: string
+    theme_index: i64
+    language_index: i64
+    page: i64
+
+struct DailyLevel:
+    text: string
+    text_en: string
+    id: i64
+
+struct Theme:
+    name: string
+    background: ui.Color
+    surface: ui.Color
+    surface_alt: ui.Color
+    accent: ui.Color
+    text: ui.Color
+    muted: ui.Color
+    positive: ui.Color
+    negative: ui.Color
+    button_text: ui.Color
+
+struct CalendarData:
+    date_text: string
+    date_text_en: string
+    fortune_text: string
+    fortune_text_en: string
+    fortune_value: i64
+    suitable_text: string
+    suitable_text_en: string
+    unsuitable_text: string
+    unsuitable_text_en: string
+
+fn field_text(value: &json.Json, key: &string, fallback: &string) -> string:
+    let field = value.lookup(key) catch e: return copy(fallback)
+    match field:
+        json.Json.Str(text): text
+        json.Json.Int(number): f"{number}"
+        json.Json.Float(number): f"{number}"
+        json.Json.Bool(flag): f"{flag}"
+        _: copy(fallback)
+
+fn difficulty_name(diff_id: i64) -> string:
+    if diff_id == 0:
+        return localization.unrated()
+    if diff_id >= 1 and diff_id <= 20:
+        return f"P{diff_id}"
+    if diff_id >= 21 and diff_id <= 40:
+        return f"G{diff_id - 20}"
+    if diff_id >= 41 and diff_id <= 60:
+        return f"U{diff_id - 40}"
+    if diff_id >= 61 and diff_id <= 65:
+        return f"GQ{diff_id - 61}"
+    if diff_id == 10010:
+        return "UQ0"
+    if diff_id == 10011:
+        return "UQ1"
+    if diff_id == 10002:
+        return "UQ2"
+    if diff_id == 10004:
+        return "UQ3"
+    if diff_id == 10006:
+        return "UQ4"
+    if diff_id == 10100:
+        return "Qq"
+    if diff_id == 10101:
+        return "-21"
+    if diff_id == 1000:
+        return "Censored"
+    if diff_id == 2355445:
+        return "P0"
+    localization.difficulty_unknown()
+
+fn difficulty_name_en(diff_id: i64) -> string:
+    let name = difficulty_name(diff_id)
+    if name == localization.difficulty_unknown():
+        return localization_en.unknown_difficulty()
+    if diff_id == 0:
+        return localization_en.unrated()
+    name
+
+fn fallback_base_score(diff_id: i64) -> string:
+    let scores = ["0", "0.1", "0.15", "0.2", "0.3", "0.4", "0.6", "0.8", "1", "1.5", "2", "3", "5", "7", "10", "15", "20", "30", "45", "60", "75", "100", "110", "120", "130", "140", "150", "160", "170", "180", "190", "200", "210", "220", "230", "240", "250", "275", "300", "350", "425", "500", "600", "700", "850", "1000", "1250", "1500", "1750", "2000", "2500", "3000", "4000", "5000"]
+    if diff_id >= 0 and diff_id <= 53:
+        return scores[diff_id]
+    if diff_id == 61 or diff_id == 62 or diff_id == 63 or diff_id == 64 or diff_id == 65:
+        return "0"
+    if diff_id == 10010 or diff_id == 10011 or diff_id == 10002 or diff_id == 10004 or diff_id == 10006:
+        return "0"
+    if diff_id == 10100 or diff_id == 10101 or diff_id == 1000 or diff_id == 2355445:
+        return "0"
+    localization.unknown()
+
+fn level_message(text: &string, text_en: &string, level_id: i64) -> DailyLevel:
+    DailyLevel(text: copy(text), text_en: copy(text_en), id: level_id)
+
+fn level_page_url(level_id: i64) -> string:
+    f"https://tuforums.com/levels/{level_id}"
+
+fn save_today_record(record: &string) -> string!string:
+    let command = "$record = [Console]::In.ReadToEnd(); $directory = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'ADOCalendar'; New-Item -ItemType Directory -Path $directory -Force | Out-Null; $path = Join-Path $directory 'userinfo.txt'; [IO.File]::AppendAllText($path, $record + [Environment]::NewLine, [Text.UTF8Encoding]::new($false)); Write-Output $path"
+    let args = ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", command]
+    let result = process.run(&args, input=record)?
+    if result.code != 0:
+        let detail = result.stderr.trim()
+        if detail == "":
+            fail localization.save_record_error(result.code)
+        fail localization.save_record_error_detail(&detail)
+    result.stdout.trim()
+
+fn format_today_record(date_text: &string, fortune_text: &string, suitable_text: &string, unsuitable_text: &string, level_id: i64, level_text: &string) -> string:
+    localization.calendar_record(date_text, fortune_text, suitable_text, unsuitable_text, level_id, level_text)
+
+fn today_record(app: &CalendarApp) -> string:
+    let date_text = current_date_text(app)
+    let fortune_text = current_fortune_text(app)
+    let suitable_text = current_suitable_text(app)
+    let unsuitable_text = current_unsuitable_text(app)
+    let level_text = current_level_text(app)
+    if app.language_index == 1:
+        return localization_en.calendar_record(&date_text, &fortune_text, &suitable_text, &unsuitable_text, app.level_id, &level_text)
+    format_today_record(&date_text, &fortune_text, &suitable_text, &unsuitable_text, app.level_id, &level_text)
+
+fn device_id() -> i64!string:
+    let result = process.run([
+        "powershell.exe",
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        "$id = (Get-CimInstance Win32_ComputerSystemProduct).UUID; [Convert]::ToInt64($id.Replace('-', '').Substring(0, 15), 16)"
+    ])?
+    if result.code != 0:
+        let detail = result.stderr.trim()
+        if detail == "":
+            fail localization.device_id_error(result.code)
+        fail localization.device_id_error_detail(&detail)
+    int(result.stdout.strip())?
+
+fn fetch_daily_level(today: datetime.Date) -> DailyLevel:
+    let levels_response = http.get("https://api.tuforums.com/v2/database/levels", timeout=8.0) catch e:
+        let error_text = localization.api_connection_error(&e)
+        let error_text_en = localization_en.api_connection_error(&e)
+        return level_message(&error_text, &error_text_en, 0)
+    if not levels_response.ok():
+        let error_text = localization.api_request_error(levels_response.status)
+        let error_text_en = localization_en.api_request_error(levels_response.status)
+        return level_message(&error_text, &error_text_en, 0)
+
+    let levels_data = levels_response.json() catch e:
+        let error_text = localization.api_json_error(&e)
+        let error_text_en = localization_en.api_json_error(&e)
+        return level_message(&error_text, &error_text_en, 0)
+    let results = levels_data.lookup("results") catch e:
+        return level_message(&localization.api_missing_results(), &localization_en.api_missing_results(), 0)
+    if results.is_null() or results.len() == 0:
+        return level_message(&localization.api_no_levels(), &localization_en.api_no_levels(), 0)
+
+    let newest = results.item(0) catch e:
+        let error_text = localization.latest_level_error(&e)
+        let error_text_en = localization_en.latest_level_error(&e)
+        return level_message(&error_text, &error_text_en, 0)
+    let latest_id_json = newest.lookup("id") catch e:
+        return level_message(&localization.latest_level_missing_id(), &localization_en.latest_level_missing_id(), 0)
+    let latest_id = latest_id_json.as_i64() catch e:
+        let error_text = localization.latest_level_invalid_id(&e)
+        let error_text_en = localization_en.latest_level_invalid_id(&e)
+        return level_message(&error_text, &error_text_en, 0)
+    if latest_id < 1:
+        return level_message(&localization.api_invalid_level_id(), &localization_en.api_invalid_level_id(), 0)
+
+    random.seed(today.to_days())
+    let level_id = random.randint(1, latest_id)
+    let level_url = f"https://api.tuforums.com/v2/database/levels/byid/{level_id}"
+    let level_response = http.get(&level_url, timeout=8.0) catch e:
+        let error_text = localization.fetch_level_error(level_id, &e)
+        let error_text_en = localization_en.fetch_level_error(level_id, &e)
+        return level_message(&error_text, &error_text_en, level_id)
+    if not level_response.ok():
+        let error_text = localization.fetch_level_http_error(level_id, level_response.status)
+        let error_text_en = localization_en.fetch_level_http_error(level_id, level_response.status)
+        return level_message(&error_text, &error_text_en, level_id)
+
+    let level = level_response.json() catch e:
+        let error_text = localization.level_json_error(&e)
+        let error_text_en = localization_en.level_json_error(&e)
+        return level_message(&error_text, &error_text_en, level_id)
+    let id_text = field_text(&level, "id", &localization.unknown())
+    let id_text_en = field_text(&level, "id", &localization_en.unknown())
+    let artist = field_text(&level, "artist", &localization.unknown_artist())
+    let artist_en = field_text(&level, "artist", &localization_en.unknown_artist())
+    let song = field_text(&level, "song", &localization.unknown_song())
+    let song_en = field_text(&level, "song", &localization_en.unknown_song())
+    let creator = field_text(&level, "creator", &localization.unknown_author())
+    let creator_en = field_text(&level, "creator", &localization_en.unknown_author())
+    let vfxers = field_text(&level, "vfxers", "")
+    let diff_id_json = level.lookup("diffId") catch e: json.Json.Null
+    let diff_id = diff_id_json.as_i64() catch e: -1
+    let difficulty = difficulty_name(diff_id)
+    let displayed_difficulty_en = difficulty_name_en(diff_id)
+    let base_score = field_text(&level, "baseScore", &localization.unknown())
+    let base_score_en = field_text(&level, "baseScore", &localization_en.unknown())
+    let displayed_base_score = if base_score == "0": fallback_base_score(diff_id) else: base_score
+    let fallback_score = fallback_base_score(diff_id)
+    let fallback_score_en = if fallback_score == localization.unknown(): localization_en.unknown() else: fallback_score
+    let displayed_base_score_en = if base_score_en == "0": fallback_score_en else: base_score_en
+    let clears = field_text(&level, "uniqueClears", &localization.unknown())
+    let clears_en = field_text(&level, "uniqueClears", &localization_en.unknown())
+    let author_text = if vfxers == "": creator else: localization.author_with_vfx(&creator, &vfxers)
+    let author_text_en = if vfxers == "": creator_en else: localization_en.author_with_vfx(&creator_en, &vfxers)
+    let description = localization.level_description(&artist, &song, &id_text, &author_text, &difficulty, &displayed_base_score, &clears)
+    let description_en = localization_en.level_description(&artist_en, &song_en, &id_text_en, &author_text_en, &displayed_difficulty_en, &displayed_base_score_en, &clears_en)
+    level_message(&description, &description_en, level_id)
+
+fn pick_event(avoid_a: i64, avoid_b: i64, avoid_c: i64, avoid_d: i64, avoid_e: i64) -> i64:
+    let mut index = random.randint(0, 11)
+    while index == avoid_a or index == avoid_b or index == avoid_c or index == avoid_d or index == avoid_e:
+        index = random.randint(0, 11)
+    index
+
+fn event_text(index: i64, language_index: i64) -> string:
+    if language_index == 1:
+        return localization_en.event_name(index)
+    localization.event_name(index)
+
+fn make_calendar_data(today: datetime.Date, device_seed: i64, language_index: i64) -> CalendarData:
+    let weekday = today.weekday()
+
+    random.seed(device_seed)
+    let mut fortune = random.randint(0, 100)
+    if (today.month == 7 and today.day == 27) or (today.month == 2 and today.day == 11) or (today.month == 1 and today.day == 1):
+        fortune = 100
+    if today.month == 4 and today.day == 1:
+        fortune = 0
+
+    let todo_count = random.randint(1, 3)
+    let nottodo_count = random.randint(1, 3)
+    let todo_a = pick_event(-1, -1, -1, -1, -1)
+    let mut todo_b = -1
+    let mut todo_c = -1
+    if todo_count > 1:
+        todo_b = pick_event(todo_a, -1, -1, -1, -1)
+    if todo_count > 2:
+        todo_c = pick_event(todo_a, todo_b, -1, -1, -1)
+
+    let nottodo_a = pick_event(todo_a, todo_b, todo_c, -1, -1)
+    let mut nottodo_b = -1
+    let mut nottodo_c = -1
+    if nottodo_count > 1:
+        nottodo_b = pick_event(todo_a, todo_b, todo_c, nottodo_a, -1)
+    if nottodo_count > 2:
+        nottodo_c = pick_event(todo_a, todo_b, todo_c, nottodo_a, nottodo_b)
+
+    let mut suitable = event_text(todo_a, language_index)
+    let separator = if language_index == 1: localization_en.event_separator() else: localization.event_separator()
+    if todo_count > 1:
+        suitable = suitable + separator + event_text(todo_b, language_index)
+    if todo_count > 2:
+        suitable = suitable + separator + event_text(todo_c, language_index)
+    if weekday >= 5:
+        let weekend = if language_index == 1: localization_en.weekend_event() else: localization.weekend_event()
+        suitable = suitable + separator + weekend
+
+    let mut unsuitable = event_text(nottodo_a, language_index)
+    if nottodo_count > 1:
+        unsuitable = unsuitable + separator + event_text(nottodo_b, language_index)
+    if nottodo_count > 2:
+        unsuitable = unsuitable + separator + event_text(nottodo_c, language_index)
+
+    if fortune == 100:
+        suitable = if language_index == 1: localization_en.perfect_fortune() else: localization.perfect_fortune()
+        unsuitable = if language_index == 1: localization_en.all_activities_allowed() else: localization.all_activities_allowed()
+
+    let date_format = if language_index == 1: localization_en.date_format() else: localization.date_format()
+    let date_label = today.strftime(&date_format)
+    let weekday_label = if language_index == 1: localization_en.weekday_name(weekday) else: localization.weekday_name(weekday)
+    let date_text = if language_index == 1: localization_en.date_text(&date_label, &weekday_label) else: localization.date_text(&date_label, &weekday_label)
+    let fortune_text = if language_index == 1: localization_en.fortune_text(fortune) else: localization.fortune_text(fortune)
+    let suitable_text = if language_index == 1: localization_en.suitable_text(&suitable) else: localization.suitable_text(&suitable)
+    let unsuitable_text = if language_index == 1: localization_en.unsuitable_text(&unsuitable) else: localization.unsuitable_text(&unsuitable)
+    CalendarData(
+        date_text: if language_index == 1: "" else: copy(&date_text),
+        date_text_en: if language_index == 1: date_text else: "",
+        fortune_text: if language_index == 1: "" else: copy(&fortune_text),
+        fortune_text_en: if language_index == 1: fortune_text else: "",
+        fortune_value: fortune,
+        suitable_text: if language_index == 1: "" else: copy(&suitable_text),
+        suitable_text_en: if language_index == 1: suitable_text else: "",
+        unsuitable_text: if language_index == 1: "" else: copy(&unsuitable_text),
+        unsuitable_text_en: if language_index == 1: unsuitable_text else: ""
+    )
+
+fn theme_for(index: i64, language_index: i64) -> Theme:
+    if index == 1:
+        return Theme(
+            name: if language_index == 1: localization_en.theme_midnight_name() else: localization.theme_midnight_name(),
+            background: ui.rgb(0x101827),
+            surface: ui.rgb(0x1B2738),
+            surface_alt: ui.rgb(0x23344A),
+            accent: ui.rgb(0x72B7FF),
+            text: ui.rgb(0xEDF4FC),
+            muted: ui.rgb(0xA7B6C9),
+            positive: ui.rgb(0x7EE0B0),
+            negative: ui.rgb(0xFF9C9C),
+            button_text: ui.rgb(0x101827)
+        )
+    if index == 2:
+        return Theme(
+            name: if language_index == 1: localization_en.theme_sunset_name() else: localization.theme_sunset_name(),
+            background: ui.rgb(0xFFF5E9),
+            surface: ui.rgb(0xFFFFFF),
+            surface_alt: ui.rgb(0xFCE7D0),
+            accent: ui.rgb(0xC45D20),
+            text: ui.rgb(0x39271D),
+            muted: ui.rgb(0x806B5D),
+            positive: ui.rgb(0x307A4B),
+            negative: ui.rgb(0xB3443F),
+            button_text: ui.rgb(0xFFFFFF)
+        )
+    Theme(
+        name: if language_index == 1: localization_en.theme_default_name() else: localization.theme_default_name(),
+        background: ui.rgb(0xEAF3FA),
+        surface: ui.rgb(0xFFFFFF),
+        surface_alt: ui.rgb(0xD9EAF7),
+        accent: ui.rgb(0x236A9B),
+        text: ui.rgb(0x18344A),
+        muted: ui.rgb(0x597287),
+        positive: ui.rgb(0x28774D),
+        negative: ui.rgb(0xAD3F3F),
+        button_text: ui.rgb(0xFFFFFF)
+    )
+
+fn next_theme(index: i64) -> i64:
+    (index + 1) % 3
+
+fn localized_text(language_index: i64, chinese: &string, english: &string) -> string:
+    if language_index == 1:
+        return copy(english)
+    copy(chinese)
+
+fn current_date_text(app: &CalendarApp) -> string:
+    localized_text(app.language_index, &app.date_text, &app.date_text_en)
+
+fn current_fortune_text(app: &CalendarApp) -> string:
+    localized_text(app.language_index, &app.fortune_text, &app.fortune_text_en)
+
+fn current_suitable_text(app: &CalendarApp) -> string:
+    localized_text(app.language_index, &app.suitable_text, &app.suitable_text_en)
+
+fn current_unsuitable_text(app: &CalendarApp) -> string:
+    localized_text(app.language_index, &app.unsuitable_text, &app.unsuitable_text_en)
+
+fn current_level_text(app: &CalendarApp) -> string:
+    localized_text(app.language_index, &app.level_text, &app.level_text_en)
+
+fn draw_card(painter: &ui.Painter, x: f64, y: f64, width: f64, height: f64, color: &ui.Color):
+    painter.fill_round_rect(&ui.rect(x, y, width, height), 14.0, color)
+
+fn draw_text_box(painter: &ui.Painter, bounds: &ui.Rect, text: &string, color: &ui.Color, size: f64, bold: bool, align: i64):
+    painter.save()
+    painter.begin()
+    painter.add_rect(bounds)
+    painter.clip()
+    painter.text_in(bounds, text, color, size, bold, align)
+    painter.restore()
+
+fn draw_button(painter: &ui.Painter, x: f64, label: &string, theme: &Theme):
+    painter.fill_round_rect(&ui.rect(x, 432.0, 153.0, 46.0), 12.0, &theme.accent)
+    let label_width = ui.text_width(label, 13.0, true)
+    let label_size = if label_width > 141.0: 13.0 * 141.0 / label_width else: 13.0
+    painter.text_in(&ui.rect(x + 6.0, 432.0, 141.0, 46.0), label, &theme.button_text, label_size, true, ui.CENTER)
+
+fn draw_about(app: &CalendarApp, painter: &ui.Painter, theme: &Theme):
+    draw_card(painter, 32.0, 92.0, 656.0, 320.0, &theme.surface)
+    painter.text(54.0, 112.0, &localized_text(app.language_index, &localization.about_title(), &localization_en.about_title()), &theme.accent, 20.0, true)
+    painter.fill_rect(&ui.rect(54.0, 148.0, 612.0, 1.0), &theme.surface_alt)
+
+    let version_text = if app.language_index == 1: localization_en.version_label() else: localization.version_label()
+    let author_text = if app.language_index == 1: localization_en.author_text() else: localization.author_text()
+    let acknowledgements = if app.language_index == 1: localization_en.acknowledgements_text() else: localization.acknowledgements_text()
+    draw_text_box(painter, &ui.rect(56.0, 164.0, 600.0, 36.0), &version_text, &theme.text, 15.0, true, ui.LEFT)
+    draw_text_box(painter, &ui.rect(56.0, 206.0, 600.0, 36.0), &author_text, &theme.text, 14.0, false, ui.LEFT)
+    draw_text_box(painter, &ui.rect(56.0, 248.0, 600.0, 52.0), &acknowledgements, &theme.text, 14.0, false, ui.LEFT)
+
+    let preview_title = localized_text(app.language_index, &localization.today_preview_title(), &localization_en.today_preview_title())
+    painter.text(56.0, 312.0, &preview_title, &theme.muted, 13.0, true)
+    let date_text = current_date_text(app)
+    let fortune_text = current_fortune_text(app)
+    let suitable_text = current_suitable_text(app)
+    let unsuitable_text = current_unsuitable_text(app)
+    let summary = if app.language_index == 1:
+        localization_en.about_summary(&date_text, &fortune_text, &suitable_text, &unsuitable_text, app.level_id)
+    else:
+        localization.about_summary(&date_text, &fortune_text, &suitable_text, &unsuitable_text, app.level_id)
+    draw_text_box(painter, &ui.rect(56.0, 336.0, 600.0, 62.0), &summary, &theme.text, 12.0, false, ui.LEFT)
+
+fn draw_calendar(app: &mut CalendarApp, painter: &ui.Painter):
+    let theme = theme_for(app.theme_index, app.language_index)
+    painter.fill_rect(&painter.bounds(), &theme.background)
+
+    let app_title = localized_text(app.language_index, &localization.app_title(), &localization_en.app_title())
+    painter.text(32.0, 22.0, &app_title, &theme.text, 25.0, true)
+    let date_text = current_date_text(app)
+    painter.text(34.0, 58.0, &date_text, &theme.muted, 13.0, false)
+    painter.fill_round_rect(&ui.rect(530.0, 22.0, 158.0, 38.0), 12.0, &theme.surface_alt)
+    let theme_label = if app.language_index == 1:
+        localization_en.theme_label(&theme.name)
+    else:
+        localization.theme_label(&theme.name)
+    draw_text_box(painter, &ui.rect(538.0, 22.0, 142.0, 38.0), &theme_label, &theme.accent, 13.0, true, ui.CENTER)
+
+    if app.page == 1:
+        draw_about(app, painter, &theme)
+        let button_return = localized_text(app.language_index, &localization.button_return(), &localization_en.button_return())
+        let button_save = localized_text(app.language_index, &localization.button_save_record(), &localization_en.button_save_record())
+        let button_language = if app.language_index == 1: localization_en.button_language() else: localization.button_language()
+        draw_button(painter, 32.0, &button_return, &theme)
+        draw_button(painter, 197.0, &button_save, &theme)
+        draw_button(painter, 362.0, &button_language, &theme)
+    else:
+        draw_card(painter, 32.0, 92.0, 200.0, 124.0, &theme.surface)
+        let fortune_label = localized_text(app.language_index, &localization.label_fortune(), &localization_en.label_fortune())
+        painter.text(50.0, 108.0, &fortune_label, &theme.muted, 13.0, false)
+        let fortune_value = f"{app.fortune_value}"
+        let fortune_width = ui.text_width(&fortune_value, 56.0, true)
+        let fortune_size = if fortune_width > 164.0: 56.0 * 164.0 / fortune_width else: 56.0
+        draw_text_box(painter, &ui.rect(50.0, 130.0, 164.0, 72.0), &fortune_value, &theme.accent, fortune_size, true, ui.CENTER)
+
+        draw_card(painter, 248.0, 92.0, 210.0, 124.0, &theme.surface)
+        let suitable_label = localized_text(app.language_index, &localization.label_suitable(), &localization_en.label_suitable())
+        painter.text(266.0, 108.0, &suitable_label, &theme.positive, 15.0, true)
+        let suitable_text = current_suitable_text(app)
+        draw_text_box(painter, &ui.rect(266.0, 134.0, 176.0, 66.0), &suitable_text, &theme.text, 14.0, false, ui.LEFT)
+
+        draw_card(painter, 474.0, 92.0, 214.0, 124.0, &theme.surface)
+        let unsuitable_label = localized_text(app.language_index, &localization.label_unsuitable(), &localization_en.label_unsuitable())
+        painter.text(492.0, 108.0, &unsuitable_label, &theme.negative, 15.0, true)
+        let unsuitable_text = current_unsuitable_text(app)
+        draw_text_box(painter, &ui.rect(492.0, 134.0, 178.0, 66.0), &unsuitable_text, &theme.text, 14.0, false, ui.LEFT)
+
+        draw_card(painter, 32.0, 232.0, 656.0, 180.0, &theme.surface)
+        let level_label = localized_text(app.language_index, &localization.label_daily_level(), &localization_en.label_daily_level())
+        painter.text(50.0, 248.0, &level_label, &theme.accent, 15.0, true)
+        painter.fill_rect(&ui.rect(50.0, 276.0, 620.0, 1.0), &theme.surface_alt)
+        let level_text = current_level_text(app)
+        draw_text_box(painter, &ui.rect(50.0, 286.0, 620.0, 112.0), &level_text, &theme.text, 13.0, false, ui.LEFT)
+
+        draw_button(painter, 32.0, &localized_text(app.language_index, &localization.button_launch_game(), &localization_en.button_launch_game()), &theme)
+        draw_button(painter, 197.0, &localized_text(app.language_index, &localization.button_view_level(), &localization_en.button_view_level()), &theme)
+        draw_button(painter, 362.0, &localized_text(app.language_index, &localization.button_view_updates(), &localization_en.button_view_updates()), &theme)
+        draw_button(painter, 527.0, &localized_text(app.language_index, &localization.button_about(), &localization_en.button_about()), &theme)
+
+    draw_text_box(painter, &ui.rect(32.0, 488.0, 656.0, 22.0), &app.status_text, &theme.muted, 11.0, false, ui.CENTER)
+
+fn handle_calendar_click(app: &mut CalendarApp, mouse: &ui.Mouse):
+    if mouse.down() != 1:
+        return
+    let x = mouse.x()
+    let y = mouse.y()
+    if x >= 530.0 and x <= 688.0 and y >= 22.0 and y <= 60.0:
+        app.theme_index = next_theme(app.theme_index)
+        let theme = theme_for(app.theme_index, app.language_index)
+        app.status_text = if app.language_index == 1:
+            localization_en.status_theme_changed(&theme.name)
+        else:
+            localization.status_theme_changed(&theme.name)
+    elif y >= 432.0 and y <= 478.0 and app.page == 1:
+        if x >= 32.0 and x <= 185.0:
+            app.page = 0
+            app.status_text = localized_text(app.language_index, &localization.status_returned(), &localization_en.status_returned())
+        elif x >= 197.0 and x <= 350.0:
+            let record = today_record(app)
+            let saved_path = save_today_record(&record) catch e:
+                app.status_text = if app.language_index == 1:
+                    localization_en.status_save_failed(&e)
+                else:
+                    localization.status_save_failed(&e)
+                app.canvas.redraw()
+                return
+            app.status_text = if app.language_index == 1:
+                localization_en.status_saved(&saved_path)
+            else:
+                localization.status_saved(&saved_path)
+        elif x >= 362.0 and x <= 515.0:
+            app.language_index = (app.language_index + 1) % 2
+            app.status_text = localized_text(app.language_index, &localization.language_changed(), &localization_en.language_changed())
+    elif y >= 432.0 and y <= 478.0 and app.page == 0:
+        if x >= 32.0 and x <= 185.0:
+            system("start steam://rungameid/977950")
+            app.status_text = localized_text(app.language_index, &localization.status_launch_game(), &localization_en.status_launch_game())
+        elif x >= 197.0 and x <= 350.0:
+            if app.level_id > 0:
+                let command = f"start {level_page_url(app.level_id)}"
+                system(&command)
+                app.status_text = if app.language_index == 1:
+                    localization_en.status_open_level(app.level_id)
+                else:
+                    localization.status_open_level(app.level_id)
+            else:
+                app.status_text = localized_text(app.language_index, &localization.status_level_unavailable(), &localization_en.status_level_unavailable())
+        elif x >= 362.0 and x <= 515.0:
+            system("start https://github.com/MMXCawa/ADOCalendar/releases")
+            app.status_text = localized_text(app.language_index, &localization.status_open_updates(), &localization_en.status_open_updates())
+        elif x >= 527.0 and x <= 680.0:
+            app.page = 1
+            app.status_text = localized_text(app.language_index, &localization.status_about(), &localization_en.about_title())
+    app.canvas.redraw()
+
+fn main() -> !string:
+    let today = datetime.today()
+    let device_seed = device_id()?
+    let calendar = make_calendar_data(today, device_seed, 0)
+    let calendar_en = make_calendar_data(today, device_seed, 1)
+    let level = fetch_daily_level(today)
+    let window = ui.window(&localization.app_title(), 720, 540)
+    let canvas = ui.canvas()
+    let column = ui.column()
+    column.set_padded(false)
+    column.add(canvas, true)
+    window.set_child(column)
+
+    let app: ui.App[CalendarApp] = ui.app()
+    app.on_draw(canvas, draw_calendar)
+    app.on_mouse(canvas, handle_calendar_click)
+    app.run(window, CalendarApp(
+        canvas: canvas,
+        date_text: calendar.date_text,
+        date_text_en: calendar_en.date_text_en,
+        fortune_text: calendar.fortune_text,
+        fortune_text_en: calendar_en.fortune_text_en,
+        fortune_value: calendar.fortune_value,
+        suitable_text: calendar.suitable_text,
+        suitable_text_en: calendar_en.suitable_text_en,
+        unsuitable_text: calendar.unsuitable_text,
+        unsuitable_text_en: calendar_en.unsuitable_text_en,
+        level_text: level.text,
+        level_text_en: level.text_en,
+        level_id: level.id,
+        status_text: localization.initial_status(),
+        theme_index: 0,
+        language_index: 0,
+        page: 0
+    ))
+
+fn test_calendar_date_and_weekday() -> !string:
+    let saturday = datetime.date(2026, 10, 31)?
+    let calendar = make_calendar_data(saturday, 123456789, 0)
+    let date_format = localization.date_format()
+    let date_label = saturday.strftime(&date_format)
+    assert calendar.date_text == localization.date_text(&date_label, &localization.weekday_name(saturday.weekday()))
+    assert calendar.suitable_text.contains(&localization.weekend_event())
+
+fn test_lucky_and_unlucky_day_overrides() -> !string:
+    let lucky = make_calendar_data(datetime.date(2026, 7, 27)?, 123456789, 0)
+    assert lucky.fortune_text == localization.fortune_text(100)
+    assert lucky.suitable_text == localization.suitable_text(&localization.perfect_fortune())
+    assert lucky.unsuitable_text == localization.unsuitable_text(&localization.all_activities_allowed())
+
+    let unlucky = make_calendar_data(datetime.date(2026, 4, 1)?, 123456789, 0)
+    assert unlucky.fortune_text == localization.fortune_text(0)
+
+fn test_calendar_data_is_stable_for_the_same_date() -> !string:
+    let today = datetime.date(2026, 10, 27)?
+    let first = make_calendar_data(today, 123456789, 0)
+    let second = make_calendar_data(today, 123456789, 0)
+    assert first.fortune_text == second.fortune_text
+    assert first.suitable_text == second.suitable_text
+    assert first.unsuitable_text == second.unsuitable_text
+
+fn test_event_picker_avoids_previous_selections():
+    random.seed(20261031)
+    let first = pick_event(-1, -1, -1, -1, -1)
+    let second = pick_event(first, -1, -1, -1, -1)
+    let third = pick_event(first, second, -1, -1, -1)
+    let fourth = pick_event(first, second, third, -1, -1)
+    let fifth = pick_event(first, second, third, fourth, -1)
+    let sixth = pick_event(first, second, third, fourth, fifth)
+    assert first != second
+    assert first != third
+    assert first != fourth
+    assert first != fifth
+    assert first != sixth
+    assert second != third
+    assert second != fourth
+    assert second != fifth
+    assert second != sixth
+    assert third != fourth
+    assert third != fifth
+    assert third != sixth
+    assert fourth != fifth
+    assert fourth != sixth
+    assert fifth != sixth
+
+fn test_difficulty_and_base_score_mappings():
+    assert difficulty_name(1) == "P1"
+    assert difficulty_name(21) == "G1"
+    assert difficulty_name(41) == "U1"
+    assert difficulty_name(64) == "GQ3"
+    assert difficulty_name(10002) == "UQ2"
+    assert difficulty_name(-1) == localization.difficulty_unknown()
+    assert fallback_base_score(0) == "0"
+    assert fallback_base_score(8) == "1"
+    assert fallback_base_score(53) == "5000"
+    assert fallback_base_score(61) == "0"
+    assert fallback_base_score(54) == localization.unknown()
+
+fn test_theme_cycle():
+    assert theme_for(0, 0).name == localization.theme_default_name()
+    assert theme_for(1, 0).name == localization.theme_midnight_name()
+    assert theme_for(2, 0).name == localization.theme_sunset_name()
+    assert theme_for(0, 1).name == localization_en.theme_default_name()
+    assert theme_for(1, 1).name == localization_en.theme_midnight_name()
+    assert theme_for(2, 1).name == localization_en.theme_sunset_name()
+    assert next_theme(0) == 1
+    assert next_theme(1) == 2
+    assert next_theme(2) == 0
+
+fn test_daily_level_page_url():
+    assert level_page_url(9035) == "https://tuforums.com/levels/9035"
+
+fn test_fortune_seed_uses_device_id() -> !string:
+    let today = datetime.date(2026, 10, 27)?
+    let first_device = make_calendar_data(today, 111111, 0)
+    let same_device = make_calendar_data(today, 111111, 0)
+    let other_device = make_calendar_data(today, 222222, 0)
+    assert first_device.fortune_value == same_device.fortune_value
+    assert first_device.suitable_text == same_device.suitable_text
+    assert first_device.unsuitable_text == same_device.unsuitable_text
+    assert first_device.fortune_value != other_device.fortune_value
+
+fn test_english_calendar_localization() -> !string:
+    let saturday = datetime.date(2026, 10, 31)?
+    let calendar = make_calendar_data(saturday, 123456789, 1)
+    assert calendar.date_text_en.contains("Today is October 31, 2026 - Saturday")
+    assert calendar.fortune_text_en.contains("Today's Fortune:")
+    assert calendar.suitable_text_en.contains("Do:")
+    assert calendar.suitable_text_en.contains("Relax")
+    assert calendar.unsuitable_text_en.contains("Avoid:")
+
+fn test_language_toggle_labels() -> !string:
+    assert localized_text(0, &localization.button_language(), &localization_en.button_language()) == "English"
+    assert localized_text(1, &localization.button_language(), &localization_en.button_language()) == "简体中文"
+    assert localized_text(1, &localization.language_changed(), &localization_en.language_changed()) == "Language changed to English."
+
+fn test_device_id_reads_windows_uuid() -> !string:
+    let id = device_id()?
+    assert id > 0
+
+fn test_today_record_contains_calendar_data() -> !string:
+    assert localization.version() == "0.0.16"
+    let record_date = datetime.date(2026, 10, 27)?
+    let date_format = localization.date_format()
+    let date_label = record_date.strftime(&date_format)
+    let date = localization.date_text(&date_label, &localization.weekday_name(record_date.weekday()))
+    let fortune = localization.fortune_text(42)
+    let suitable = localization.suitable_text(&localization.event_name(1))
+    let unsuitable = localization.unsuitable_text(&localization.event_name(3))
+    let record = format_today_record(&date, &fortune, &suitable, &unsuitable, 9035, "Sample song - Sample artist")
+    assert record.contains(&date)
+    assert record.contains(&fortune)
+    assert record.contains(&suitable)
+    assert record.contains(&unsuitable)
+    assert record.contains(&localization.daily_level_id_record_label())
+    assert record.contains(&localization.version_label())

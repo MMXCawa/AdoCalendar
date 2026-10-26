@@ -1,0 +1,22 @@
+# Zamak build outputs and caches
+/build/
+/.zam/
+/.zamak/
+
+# Windows build artifacts
+*.exe
+*.pdb
+
+# Legacy Python source: include only after confirming its redistribution rights
+/ADOCalendar0.0.15.py
+
+# Local user data and temporary files
+userinfo.txt
+*.tmp
+*.log
+
+# Editor and operating-system files
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini

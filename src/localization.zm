@@ -1,0 +1,250 @@
+pub fn version() -> string:
+    "0.0.16"
+
+pub fn app_title() -> string:
+    "冰火日历"
+
+pub fn about_title() -> string:
+    "关于冰火日历"
+
+pub fn author_text() -> string:
+    "作者：MMXCawa、B130MYS"
+
+pub fn acknowledgements_text() -> string:
+    "特别鸣谢：Ariaelle、Giough、Icebomb丶ye、SwidmV、ColdCat"
+
+pub fn today_preview_title() -> string:
+    "今日记录预览"
+
+pub fn version_label() -> string:
+    f"版本：{version()}"
+
+pub fn initial_status() -> string:
+    "点击右上角切换主题；按钮可启动游戏或打开相关页面。"
+
+pub fn theme_label(name: &string) -> string:
+    f"主题：{name}  ⟳"
+
+pub fn status_theme_changed(name: &string) -> string:
+    f"已切换到「{name}」主题。"
+
+pub fn status_returned() -> string:
+    "已返回今日运势。"
+
+pub fn status_save_failed(error: &string) -> string:
+    f"保存失败：{error}"
+
+pub fn status_saved(path: &string) -> string:
+    f"已追加保存到：{path}"
+
+pub fn status_launch_game() -> string:
+    "已发送启动 ADOFAI 的请求；请检查 Steam 是否响应。"
+
+pub fn status_open_level(level_id: i64) -> string:
+    f"已发送打开今日谱面 {level_id} 的请求。"
+
+pub fn status_level_unavailable() -> string:
+    "今日谱面编号不可用，请检查网络后重启程序。"
+
+pub fn status_open_updates() -> string:
+    "已发送打开更新页面的请求；请检查默认浏览器。"
+
+pub fn status_about() -> string:
+    about_title()
+
+pub fn button_return() -> string:
+    "返回首页"
+
+pub fn button_save_record() -> string:
+    "保存今日记录"
+
+pub fn button_launch_game() -> string:
+    "启动 ADOFAI"
+
+pub fn button_view_level() -> string:
+    "查看谱面"
+
+pub fn button_view_updates() -> string:
+    "查看更新"
+
+pub fn button_about() -> string:
+    "关于"
+
+pub fn label_fortune() -> string:
+    "今日运势"
+
+pub fn label_suitable() -> string:
+    "宜"
+
+pub fn label_unsuitable() -> string:
+    "忌"
+
+pub fn label_daily_level() -> string:
+    "每日谱面推荐"
+
+pub fn author_label() -> string:
+    "作者"
+
+pub fn vfx_label() -> string:
+    "VFX"
+
+pub fn difficulty_label() -> string:
+    "难度"
+
+pub fn base_score_label() -> string:
+    "基础分"
+
+pub fn clears_label() -> string:
+    "通过人数"
+
+pub fn date_record_label() -> string:
+    "日期"
+
+pub fn fortune_record_label() -> string:
+    "今日运势"
+
+pub fn suitable_record_label() -> string:
+    "宜"
+
+pub fn unsuitable_record_label() -> string:
+    "忌"
+
+pub fn daily_level_id_record_label() -> string:
+    "每日谱面编号"
+
+pub fn daily_level_record_label() -> string:
+    "每日谱面"
+
+pub fn version_record_label() -> string:
+    "版本"
+
+pub fn unknown() -> string:
+    "未知"
+
+pub fn unrated() -> string:
+    "未评级"
+
+pub fn unknown_artist() -> string:
+    "未知艺术家"
+
+pub fn unknown_song() -> string:
+    "未知曲名"
+
+pub fn unknown_author() -> string:
+    "未知作者"
+
+pub fn date_text(date_label: &string, weekday: &string) -> string:
+    f"今天是{date_label} - 星期{weekday}"
+
+pub fn date_format() -> string:
+    "%Y年%m月%d日"
+
+pub fn fortune_text(fortune: i64) -> string:
+    f"今日运势：{fortune}"
+
+pub fn suitable_text(suitable: &string) -> string:
+    f"宜：{suitable}"
+
+pub fn unsuitable_text(unsuitable: &string) -> string:
+    f"忌：{unsuitable}"
+
+pub fn weekend_event() -> string:
+    "放松"
+
+pub fn perfect_fortune() -> string:
+    "完美无瑕"
+
+pub fn all_activities_allowed() -> string:
+    "诸事可行"
+
+pub fn event_separator() -> string:
+    "、"
+
+pub fn theme_default_name() -> string:
+    "冰蓝"
+
+pub fn theme_midnight_name() -> string:
+    "午夜蓝"
+
+pub fn theme_sunset_name() -> string:
+    "暖阳橙"
+
+pub fn difficulty_unknown() -> string:
+    unknown()
+
+pub fn api_connection_error(error: &string) -> string:
+    f"每日谱面：无法连接 API（{error}）"
+
+pub fn api_request_error(status: i64) -> string:
+    f"每日谱面：API 请求失败（HTTP {status}）"
+
+pub fn api_json_error(error: &string) -> string:
+    f"每日谱面：列表 JSON 无法解析（{error}）"
+
+pub fn api_missing_results() -> string:
+    "每日谱面：API 响应缺少 results 字段"
+
+pub fn api_no_levels() -> string:
+    "每日谱面：API 暂无可用谱面"
+
+pub fn latest_level_error(error: &string) -> string:
+    f"每日谱面：无法读取最新谱面（{error}）"
+
+pub fn latest_level_missing_id() -> string:
+    "每日谱面：最新谱面缺少编号"
+
+pub fn latest_level_invalid_id(error: &string) -> string:
+    f"每日谱面：最新谱面编号无效（{error}）"
+
+pub fn api_invalid_level_id() -> string:
+    "每日谱面：API 返回的谱面编号无效"
+
+pub fn fetch_level_error(level_id: i64, error: &string) -> string:
+    f"每日谱面：无法获取谱面 {level_id}（{error}）"
+
+pub fn fetch_level_http_error(level_id: i64, status: i64) -> string:
+    f"每日谱面：谱面 {level_id} 请求失败（HTTP {status}）"
+
+pub fn level_json_error(error: &string) -> string:
+    f"每日谱面：谱面 JSON 无法解析（{error}）"
+
+pub fn level_description(artist: &string, song: &string, id: &string, author: &string, difficulty: &string, score: &string, clears: &string) -> string:
+    f"每日谱面：{artist} - {song}\n谱面编号：{id}\n作者：{author}\n难度：{difficulty}（基础分：{score}）\n通过人数：{clears}"
+
+pub fn author_with_vfx(author: &string, vfx: &string) -> string:
+    f"{author} / VFX: {vfx}"
+
+pub fn calendar_record(date: &string, fortune: &string, suitable: &string, unsuitable: &string, level_id: i64, level_text: &string) -> string:
+    f"{date_record_label()}：{date}\n{fortune}\n{suitable}\n{unsuitable}\n{daily_level_id_record_label()}：{level_id}\n{daily_level_record_label()}：{level_text}\n{version_record_label()}：{version()}"
+
+pub fn about_summary(date: &string, fortune: &string, suitable: &string, unsuitable: &string, level_id: i64) -> string:
+    f"{date}\n{fortune}  |  {suitable}  |  {unsuitable}\n{daily_level_id_record_label()}：{level_id}"
+
+pub fn save_record_error(exit_code: i64) -> string:
+    f"保存今日记录失败（退出码 {exit_code}）"
+
+pub fn save_record_error_detail(detail: &string) -> string:
+    f"保存今日记录失败：{detail}"
+
+pub fn device_id_error(exit_code: i64) -> string:
+    f"无法读取此设备的硬件 ID（退出码 {exit_code}）"
+
+pub fn device_id_error_detail(detail: &string) -> string:
+    f"无法读取此设备的硬件 ID：{detail}"
+
+pub fn weekday_name(index: i64) -> string:
+    let weekdays = ["一", "二", "三", "四", "五", "六", "日"]
+    weekdays[index]
+
+pub fn event_name(index: i64) -> string:
+    let events = ["硬扛", "轮指", "刷准", "首通", "看转播", "打飙速", "乱糊", "采音", "特效", "拜谢", "敲代码", "发情"]
+    events[index]
+
+pub fn locale_code() -> string:
+    "zh-CN"
+
+pub fn button_language() -> string:
+    "English"
+
+pub fn language_changed() -> string:
+    "语言已切换为简体中文。"

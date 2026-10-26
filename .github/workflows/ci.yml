@@ -1,0 +1,32 @@
+name: Windows CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check-and-test:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Zamak
+        shell: pwsh
+        run: npm install --global @veyralux/zamak@0.2.0
+
+      - name: Check source
+        shell: pwsh
+        run: zam check .
+
+      - name: Run tests
+        shell: pwsh
+        run: zam test .
